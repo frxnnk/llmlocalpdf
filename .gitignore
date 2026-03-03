@@ -12,8 +12,9 @@ input/
 output/
 test_output/
 
-# Logs
+# Logs y PID file
 logs/
+llama-server.pid
 
 # PDFs (pueden contener datos sensibles)
 *.pdf

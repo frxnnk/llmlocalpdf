@@ -1,0 +1,6 @@
+El siguiente texto debería ser un JSON válido pero tiene errores de formato. Corregilo para que sea un JSON válido. Mantené todo el contenido original. Devolvé SOLO el JSON corregido, sin explicaciones ni markdown.
+
+Texto a corregir:
+---
+{broken_json}
+---

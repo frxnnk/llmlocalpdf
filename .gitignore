@@ -1,0 +1,26 @@
+# Modelo LLM (~4.4 GB) - se descarga con install.bat
+models/
+
+# llama.cpp server binario - se descarga con install.bat
+llama-server/
+
+# Python virtual environment
+venv/
+
+# Carpetas de trabajo (PDFs y resultados)
+input/
+output/
+test_output/
+
+# Logs
+logs/
+
+# PDFs (pueden contener datos sensibles)
+*.pdf
+test_input/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/

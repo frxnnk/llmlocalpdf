@@ -34,9 +34,9 @@ def setup_logging(log_dir: Path) -> None:
     console.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
     root.addHandler(console)
 
-    # Archivo
+    # Archivo (INFO para no persistir contenido sensible de documentos)
     file_handler = logging.FileHandler(str(log_file), encoding="utf-8")
-    file_handler.setLevel(logging.DEBUG)
+    file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(
         logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
     )

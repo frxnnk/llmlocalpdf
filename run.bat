@@ -3,6 +3,7 @@
 :: Uso: poner PDFs en input\ y ejecutar este script
 
 set SCRIPT_DIR=%~dp0
+set PID_FILE=%SCRIPT_DIR%llama-server.pid
 
 echo ==========================================
 echo  Pipeline Oficios Judiciales
@@ -56,6 +57,16 @@ if %errorlevel% equ 0 (
     echo Iniciando servidor LLM (esto tarda ~30 segundos)...
     start "" /min "%SCRIPT_DIR%start_server.bat"
 
+    :: Esperar un instante y capturar PID del proceso que levantamos
+    timeout /t 2 /nobreak >nul
+    for /f "tokens=2 delims=," %%p in ('tasklist /fi "imagename eq llama-server.exe" /fo csv /nh 2^>nul ^| findstr /i "llama-server"') do (
+        set SERVER_PID=%%~p
+    )
+    if defined SERVER_PID (
+        echo   PID del servidor: %SERVER_PID%
+        echo %SERVER_PID%> "%PID_FILE%"
+    )
+
     :: Esperar a que el servidor responda (health check con reintentos)
     set RETRIES=0
     set MAX_RETRIES=30
@@ -69,7 +80,13 @@ if %errorlevel% equ 0 (
 
     echo ERROR: El servidor no respondio despues de 90 segundos.
     echo Revisar la ventana del servidor por errores.
-    taskkill /IM llama-server.exe /F >nul 2>&1
+    :: Limpiar: matar por PID si lo tenemos, sino por nombre
+    if defined SERVER_PID (
+        taskkill /PID %SERVER_PID% /F >nul 2>&1
+        del "%PID_FILE%" >nul 2>&1
+    ) else (
+        taskkill /IM llama-server.exe /F >nul 2>&1
+    )
     pause & exit /b 1
 )
 
@@ -90,7 +107,12 @@ set PROCESS_EXIT=%errorlevel%
 if %SERVER_WAS_RUNNING% equ 0 (
     echo.
     echo Deteniendo servidor LLM...
-    taskkill /IM llama-server.exe /F >nul 2>&1
+    if defined SERVER_PID (
+        taskkill /PID %SERVER_PID% /F >nul 2>&1
+    ) else (
+        taskkill /IM llama-server.exe /F >nul 2>&1
+    )
+    del "%PID_FILE%" >nul 2>&1
 )
 
 :: --- Resumen ---

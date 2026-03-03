@@ -1,11 +1,15 @@
 """Extracción de texto de PDFs con pdfplumber."""
 
 import logging
+import os
 import re
 
 import pdfplumber
 
 logger = logging.getLogger(__name__)
+
+# Tamaño máximo de PDF a procesar (100 MB)
+MAX_PDF_SIZE_BYTES = 100 * 1024 * 1024
 
 
 def fix_encoding(text: str) -> str:
@@ -63,7 +67,17 @@ def extract_text(pdf_path: str) -> tuple[str, bool]:
     Returns:
         (texto, needs_ocr): texto concatenado de todas las páginas,
         y True si el PDF no tiene texto extraíble (necesitaría OCR).
+
+    Raises:
+        ValueError: si el PDF excede MAX_PDF_SIZE_BYTES.
     """
+    file_size = os.path.getsize(pdf_path)
+    if file_size > MAX_PDF_SIZE_BYTES:
+        raise ValueError(
+            f"PDF demasiado grande: {file_size / 1024 / 1024:.1f} MB "
+            f"(maximo: {MAX_PDF_SIZE_BYTES / 1024 / 1024:.0f} MB)"
+        )
+
     pages_text = []
     with pdfplumber.open(pdf_path) as pdf:
         for page in pdf.pages:

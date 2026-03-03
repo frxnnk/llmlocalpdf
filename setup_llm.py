@@ -1,5 +1,6 @@
 """Script de setup: descarga llama.cpp + modelo Qwen2.5-7B-Instruct Q4_K_M."""
 
+import hashlib
 import os
 import platform
 import shutil
@@ -16,57 +17,45 @@ MODELS_DIR = BASE_DIR / "models"
 MODEL_FILENAME = "qwen2.5-7b-instruct-q4_k_m.gguf"
 MODEL_REPO = "Qwen/Qwen2.5-7B-Instruct-GGUF"
 
+# --- Pinned llama.cpp release ---
+LLAMA_RELEASE_TAG = "b8192"
+LLAMA_ASSET_NAME = f"llama-{LLAMA_RELEASE_TAG}-bin-win-cpu-x64.zip"
+LLAMA_ASSET_URL = f"https://github.com/ggml-org/llama.cpp/releases/download/{LLAMA_RELEASE_TAG}/{LLAMA_ASSET_NAME}"
+LLAMA_ASSET_SHA256 = "8a206290df3466388c42510b975660dd709f0084ea0809abc36e4f4fc3602ee7"
+
+
+def verify_sha256(file_path: Path, expected_hash: str) -> bool:
+    """Verificar SHA256 de un archivo descargado."""
+    sha256 = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            sha256.update(chunk)
+    actual = sha256.hexdigest()
+    if actual != expected_hash:
+        print(f"  ERROR: Hash SHA256 no coincide!")
+        print(f"    Esperado: {expected_hash}")
+        print(f"    Obtenido: {actual}")
+        return False
+    return True
+
 
 def download_llama_cpp():
-    """Descargar llama.cpp server precompilado para Windows."""
+    """Descargar llama.cpp server precompilado para Windows (version pineada + SHA256)."""
     server_exe = LLAMA_DIR / "llama-server.exe"
     if server_exe.exists():
         print(f"[OK] llama-server.exe ya existe en {LLAMA_DIR}")
         return
 
-    print("[1/2] Descargando llama.cpp server para Windows...")
+    print(f"[1/2] Descargando llama.cpp server {LLAMA_RELEASE_TAG} para Windows...")
     LLAMA_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Buscar el último release
-    api_url = "https://api.github.com/repos/ggerganov/llama.cpp/releases/latest"
-    resp = requests.get(api_url, timeout=30)
-    resp.raise_for_status()
-    release = resp.json()
+    print(f"  Release: {LLAMA_RELEASE_TAG}")
+    print(f"  Asset: {LLAMA_ASSET_NAME}")
+    print(f"  URL: {LLAMA_ASSET_URL}")
 
-    # Buscar asset CPU x64 para Windows
-    asset_url = None
-    asset_name = None
-    for asset in release["assets"]:
-        name = asset["name"].lower()
-        if "win" in name and "x64" in name and "cpu" in name and name.endswith(".zip"):
-            # Evitar variantes avx512 o vulkan
-            if "vulkan" not in name and "kompute" not in name:
-                asset_url = asset["browser_download_url"]
-                asset_name = asset["name"]
-                break
-
-    if not asset_url:
-        # Fallback: cualquier win-x64 zip
-        for asset in release["assets"]:
-            name = asset["name"].lower()
-            if "win" in name and "x64" in name and name.endswith(".zip"):
-                if "vulkan" not in name and "kompute" not in name and "cuda" not in name:
-                    asset_url = asset["browser_download_url"]
-                    asset_name = asset["name"]
-                    break
-
-    if not asset_url:
-        print("ERROR: No se encontro release de llama.cpp para Windows x64 CPU.")
-        print("Descargalo manualmente desde: https://github.com/ggerganov/llama.cpp/releases")
-        sys.exit(1)
-
-    print(f"  Release: {release['tag_name']}")
-    print(f"  Asset: {asset_name}")
-    print(f"  URL: {asset_url}")
-
-    zip_path = LLAMA_DIR / asset_name
+    zip_path = LLAMA_DIR / LLAMA_ASSET_NAME
     # Descargar con progreso
-    with requests.get(asset_url, stream=True, timeout=300) as r:
+    with requests.get(LLAMA_ASSET_URL, stream=True, timeout=300) as r:
         r.raise_for_status()
         total = int(r.headers.get("content-length", 0))
         downloaded = 0
@@ -78,6 +67,15 @@ def download_llama_cpp():
                     pct = downloaded * 100 // total
                     print(f"\r  Descargando: {pct}% ({downloaded // 1024 // 1024}MB)", end="", flush=True)
     print()
+
+    # Verificar integridad
+    print("  Verificando SHA256...")
+    if not verify_sha256(zip_path, LLAMA_ASSET_SHA256):
+        zip_path.unlink()
+        print("ERROR: El archivo descargado esta corrupto o fue alterado.")
+        print("Esto puede indicar un problema de red o un ataque de supply chain.")
+        sys.exit(1)
+    print("  SHA256 OK")
 
     # Extraer
     print("  Extrayendo...")

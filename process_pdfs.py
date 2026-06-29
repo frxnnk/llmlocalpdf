@@ -80,6 +80,34 @@ def build_pipeline_metadata(
     return pipeline
 
 
+def build_index_rows(input_dir: Path, output_dir: Path, new_rows: list[dict]) -> list[dict]:
+    rows_by_filename = {row["filename"]: dict(row) for row in new_rows}
+
+    for pdf_path in sorted(input_dir.glob("*.pdf")):
+        if pdf_path.name in rows_by_filename:
+            continue
+
+        output_file = output_dir / f"{pdf_path.stem}.json"
+        if not output_file.exists():
+            continue
+
+        with open(output_file, encoding="utf-8") as f:
+            result = json.load(f)
+
+        resumen = result.get("resumenGeneral", {})
+        pipeline = result.get("_pipeline", {})
+        rows_by_filename[pdf_path.name] = {
+            "filename": pdf_path.name,
+            "oficioId": result.get("oficioId", ""),
+            "cantidadInstrucciones": resumen.get("cantidadInstrucciones", 0),
+            "contieneMovimientosDinero": resumen.get("contieneMovimientosDinero", False),
+            "needs_ocr": pipeline.get("needs_ocr", False),
+            "warnings_count": len(pipeline.get("warnings", [])),
+        }
+
+    return sorted(rows_by_filename.values(), key=lambda row: row["filename"])
+
+
 def process_single_pdf(
     pdf_path: Path,
     output_dir: Path,
@@ -298,8 +326,9 @@ def main() -> None:
 
     # Escribir index.jsonl
     index_file = output_dir / "index.jsonl"
+    all_index_rows = build_index_rows(input_dir, output_dir, index_rows)
     with open(index_file, "w", encoding="utf-8") as f:
-        for row in sorted(index_rows, key=lambda r: r["filename"]):
+        for row in all_index_rows:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     logger.info(

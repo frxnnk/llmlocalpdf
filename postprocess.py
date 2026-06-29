@@ -4,6 +4,7 @@ import logging
 
 from cbu import is_valid_cbu, normalize_cbu
 from schema_contract import validate_schema
+from source_anchor import anchor_amount, anchor_digits
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,7 @@ def _mark_not_processable(instr: dict, reason: str) -> None:
         ejecutabilidad["motivoNoProcesable"] = reason
 
 
-def reconcile_instrucciones(llm_result: dict) -> tuple[dict, list[str]]:
+def reconcile_instrucciones(llm_result: dict, source_text: str | None = None) -> tuple[dict, list[str]]:
     """Limpieza ligera de identificadores en instrucciones del schema Cedeira.
 
     Para cada instrucción con movimiento no-null:
@@ -34,8 +35,11 @@ def reconcile_instrucciones(llm_result: dict) -> tuple[dict, list[str]]:
     result = dict(llm_result)
     result.setdefault("_validation", {})
     result["_validation"]["schema_warnings"] = warnings
+    source_anchors = {}
     instrucciones = result.get("instrucciones", [])
     if not isinstance(instrucciones, list):
+        if source_text is not None:
+            result["_validation"]["source_anchors"] = source_anchors
         return result, warnings
 
     for i, instr in enumerate(instrucciones):
@@ -59,11 +63,22 @@ def reconcile_instrucciones(llm_result: dict) -> tuple[dict, list[str]]:
                 normalized = normalize_cbu(cleaned)
                 if is_valid_cbu(normalized):
                     fondos["identificador"] = normalized
-                    continue
+                else:
+                    field = f"instrucciones[{i}].movimiento.{campo_fondos}.identificador"
+                    warning = f"{field}: CBU invalida"
+                    warnings.append(warning)
+                    _mark_not_processable(instr, f"CBU invalida en {campo_fondos}.identificador")
 
-                field = f"instrucciones[{i}].movimiento.{campo_fondos}.identificador"
-                warning = f"{field}: CBU invalida"
-                warnings.append(warning)
-                _mark_not_processable(instr, f"CBU invalida en {campo_fondos}.identificador")
+                if source_text is not None:
+                    field = f"instrucciones[{i}].movimiento.{campo_fondos}.identificador"
+                    source_anchors[field] = anchor_digits(source_text, fondos["identificador"])
+
+        importe = mov.get("importe")
+        if source_text is not None and isinstance(importe, dict) and "valor" in importe:
+            field = f"instrucciones[{i}].movimiento.importe.valor"
+            source_anchors[field] = anchor_amount(source_text, importe["valor"])
+
+    if source_text is not None:
+        result["_validation"]["source_anchors"] = source_anchors
 
     return result, warnings

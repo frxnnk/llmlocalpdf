@@ -4,7 +4,7 @@
 
 set SCRIPT_DIR=%~dp0
 set SERVER_EXE=%SCRIPT_DIR%llama-server\llama-server.exe
-set MODEL=%SCRIPT_DIR%models\qwen2.5-7b-instruct-q4_k_m.gguf
+set MODEL=%SCRIPT_DIR%models\qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf
 
 if not exist "%SERVER_EXE%" (
     echo ERROR: No se encontro llama-server.exe

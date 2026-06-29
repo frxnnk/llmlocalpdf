@@ -31,7 +31,10 @@ class TestAuditMetadata(unittest.TestCase):
             hashlib.sha256("prompt text".encode("utf-8")).hexdigest(),
         )
         self.assertEqual(metadata["model_id"], "qwen2.5-7b-instruct-q4_k_m")
-        self.assertEqual(metadata["model_filename"], "qwen2.5-7b-instruct-q4_k_m.gguf")
+        self.assertEqual(
+            metadata["model_filename"],
+            "qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf",
+        )
         self.assertEqual(metadata["processed_at"], "2026-06-29T00:00:00+00:00")
 
     def test_metadata_includes_model_sha_when_manifest_exists(self):
@@ -49,6 +52,34 @@ class TestAuditMetadata(unittest.TestCase):
             )
 
         self.assertEqual(metadata["model_sha256"], "model-sha")
+
+    def test_metadata_includes_split_model_file_hashes_when_manifest_has_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source_file = Path(tmp) / "oficio.pdf"
+            source_file.write_bytes(b"pdf-bytes")
+            manifest_path = Path(tmp) / "model-manifest.json"
+            manifest_path.write_text(
+                '{"files": ['
+                '{"filename": "model-00001.gguf", "sha256": "sha-a"},'
+                '{"filename": "model-00002.gguf", "sha256": "sha-b"}'
+                "]}",
+                encoding="utf-8",
+            )
+
+            metadata = build_audit_metadata(
+                source_file,
+                "prompt text",
+                model_manifest_path=manifest_path,
+                code_dir=Path(tmp),
+            )
+
+        self.assertEqual(
+            metadata["model_files"],
+            [
+                {"filename": "model-00001.gguf", "sha256": "sha-a"},
+                {"filename": "model-00002.gguf", "sha256": "sha-b"},
+            ],
+        )
 
     def test_get_code_commit_returns_none_outside_git_repo(self):
         with tempfile.TemporaryDirectory() as tmp:

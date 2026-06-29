@@ -7,7 +7,7 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-from model_registry import compute_sha256, get_model_spec, load_manifest
+from model_registry import compute_sha256, get_model_filenames, get_model_spec, load_manifest
 
 
 def get_code_commit(code_dir: Path | None = None) -> str | None:
@@ -41,7 +41,7 @@ def build_audit_metadata(
         "source_sha256": compute_sha256(source_file),
         "prompt_sha256": hashlib.sha256(prompt_text.encode("utf-8")).hexdigest(),
         "model_id": model_spec["id"],
-        "model_filename": model_spec["filename"],
+        "model_filename": get_model_filenames(model_spec)[0],
         "processed_at": processed_at or datetime.now(timezone.utc).isoformat(),
     }
 
@@ -50,6 +50,13 @@ def build_audit_metadata(
         model_sha = manifest.get("sha256")
         if model_sha:
             metadata["model_sha256"] = model_sha
+        model_files = manifest.get("files")
+        if isinstance(model_files, list):
+            metadata["model_files"] = [
+                {"filename": entry["filename"], "sha256": entry["sha256"]}
+                for entry in model_files
+                if "filename" in entry and "sha256" in entry
+            ]
 
     code_commit = get_code_commit(code_dir)
     if code_commit:

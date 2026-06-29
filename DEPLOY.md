@@ -15,7 +15,7 @@ Guia paso a paso para instalar y operar el pipeline de oficios judiciales en el 
 
 | Recurso | Necesario | Detalle |
 |---|---|---|
-| Disco | ~12 GB | Modelo 4.4 GB + llama.cpp ~30 MB + Python + venv |
+| Disco | ~12 GB | Modelo GGUF split ~4.4 GB total + llama.cpp ~30 MB + Python + venv |
 | RAM libre | ~10 GB | El modelo Qwen2.5-7B Q4_K_M usa ~7-8 GB cargado |
 | CPU | 6 threads dedicados | llama-server usa `-t 6` (los 6 cores fisicos del Xeon) |
 | Red | Solo para instalacion | Descarga modelo de HuggingFace + llama.cpp de GitHub |
@@ -59,10 +59,10 @@ Esto ejecuta automaticamente:
 2. Instala dependencias Python (pdfplumber, requests, tqdm, huggingface-hub)
 3. Descarga `llama-server.exe` desde GitHub (~30 MB)
 4. Verifica integridad del binario (SHA256)
-5. Descarga el modelo `qwen2.5-7b-instruct-q4_k_m.gguf` desde HuggingFace (~4.4 GB)
+5. Descarga el modelo Qwen2.5 `Q4_K_M` desde HuggingFace en dos shards GGUF (~4.4 GB total)
 6. Crea carpetas `input\` y `output\`
 
-**Tiempo estimado**: 20-40 minutos (depende de la velocidad de internet para bajar los 4.4 GB del modelo).
+**Tiempo estimado**: 20-40 minutos (depende de la velocidad de internet para bajar los ~4.4 GB del modelo).
 
 > `install.bat` descarga desde HuggingFace solo para desarrollo o laboratorio controlado.
 > Para staging bancario o produccion, no descargar el modelo desde el servidor final:
@@ -78,7 +78,9 @@ C:\pipeline\llmlocalpdf\
   ├── llama-server\             (contiene llama-server.exe)
   │   └── llama-server.exe
   └── models\                   (contiene el modelo)
-      └── qwen2.5-7b-instruct-q4_k_m.gguf  (~4.4 GB)
+      ├── qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf
+      ├── qwen2.5-7b-instruct-q4_k_m-00002-of-00002.gguf
+      └── model-manifest.json
 ```
 
 Verificar el manifest local del modelo antes de levantar el servidor:
@@ -96,7 +98,7 @@ Para un banco, el flujo recomendado es:
 
 1. Descargar dependencias y modelo en una maquina controlada con internet.
 2. Registrar SHA-256, licencia, URL de origen, revision/model card y aprobacion interna.
-3. Armar un paquete offline con codigo, wheels, llama-server, modelo `.gguf` y `models\model-manifest.json`.
+3. Armar un paquete offline con codigo, wheels, llama-server, shards `.gguf` y `models\model-manifest.json`.
 4. Instalar en el servidor final sin salida a internet.
 5. Ejecutar `python verify_model.py` y conservar la salida como evidencia.
 6. Documentar firewall/egress, BitLocker o cifrado equivalente, y procedimiento de rollback.

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Sequence
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -39,6 +40,16 @@ def get_model_spec(model_id: str | None = None, path: Path | None = None) -> dic
     raise ValueError(f"Unknown model id: {selected_id}")
 
 
+def get_model_filenames(model_spec: dict[str, Any]) -> list[str]:
+    """Return all local filenames required for a model artifact."""
+    files = model_spec.get("files")
+    if files:
+        if not isinstance(files, list) or not all(isinstance(item, str) for item in files):
+            raise ValueError("Model spec files must be a list of filenames")
+        return list(files)
+    return [model_spec["filename"]]
+
+
 def compute_sha256(path: Path) -> str:
     """Compute SHA-256 for a local artifact."""
     digest = hashlib.sha256()
@@ -48,18 +59,43 @@ def compute_sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def build_manifest(model_path: Path, model_spec: dict[str, Any]) -> dict[str, Any]:
+def _normalize_model_paths(model_paths: Path | Sequence[Path]) -> list[Path]:
+    if isinstance(model_paths, Path):
+        return [model_paths]
+    return list(model_paths)
+
+
+def build_manifest(
+    model_path: Path | Sequence[Path],
+    model_spec: dict[str, Any],
+) -> dict[str, Any]:
     """Build a local manifest for a downloaded model artifact."""
+    model_paths = _normalize_model_paths(model_path)
+    if not model_paths:
+        raise ValueError("At least one model file is required")
+
+    primary_path = model_paths[0]
+    file_entries = [
+        {
+            "filename": path.name,
+            "sha256": compute_sha256(path),
+            "size_bytes": path.stat().st_size,
+        }
+        for path in model_paths
+    ]
+
     return {
         "model_id": model_spec["id"],
         "provider": model_spec.get("provider"),
         "repo": model_spec["repo"],
-        "filename": model_path.name,
+        "filename": primary_path.name,
         "expected_filename": model_spec["filename"],
+        "expected_files": get_model_filenames(model_spec),
+        "files": file_entries,
         "quantization": model_spec.get("quantization"),
         "license": model_spec["license"],
         "source_url": model_spec["source_url"],
-        "sha256": compute_sha256(model_path),
+        "sha256": file_entries[0]["sha256"],
         "created_at": datetime.now(timezone.utc).isoformat(),
         "approval_status": "candidate_unreviewed",
         "approval_notes": model_spec.get("risk_notes", []),
@@ -95,6 +131,30 @@ def validate_manifest(model_path: Path, manifest_path: Path) -> list[str]:
         errors.append(
             f"Model filename mismatch: expected {expected_filename}, got {model_path.name}"
         )
+
+    manifest_files = manifest.get("files")
+    if isinstance(manifest_files, list) and manifest_files:
+        for entry in manifest_files:
+            filename = entry.get("filename")
+            expected_sha = entry.get("sha256")
+            if not filename:
+                errors.append("Model manifest file entry missing filename")
+                continue
+
+            artifact_path = model_path.parent / filename
+            if not artifact_path.exists():
+                errors.append(f"Model file not found: {artifact_path}")
+                continue
+            if not expected_sha:
+                errors.append(f"Model manifest missing sha256 for {filename}")
+                continue
+
+            actual_sha = compute_sha256(artifact_path)
+            if actual_sha != expected_sha:
+                errors.append(
+                    f"SHA-256 mismatch for {filename}: expected {expected_sha}, got {actual_sha}"
+                )
+        return errors
 
     expected_sha = manifest.get("sha256")
     if not expected_sha:

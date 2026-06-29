@@ -513,7 +513,7 @@ Add to each output:
   "extracted_text_sha256": "...",
   "prompt_sha256": "...",
   "code_commit": "...",
-  "model_file": "qwen2.5-7b-instruct-q4_k_m.gguf",
+  "model_file": "qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf",
   "started_at": "...",
   "finished_at": "..."
 }
@@ -719,7 +719,11 @@ Fields:
 
 ```json
 {
-  "filename": "qwen2.5-7b-instruct-q4_k_m.gguf",
+  "filename": "qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf",
+  "files": [
+    "qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf",
+    "qwen2.5-7b-instruct-q4_k_m-00002-of-00002.gguf"
+  ],
   "repo": "Qwen/Qwen2.5-7B-Instruct-GGUF",
   "revision": "",
   "sha256": ""

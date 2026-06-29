@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import sys
+import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
@@ -12,12 +13,14 @@ from pathlib import Path
 
 from tqdm import tqdm
 
+from audit_log import append_pdf_processed_event
 from audit_metadata import build_audit_metadata
 from llm_client import LLMClient
 from pdf_extract import extract_text, normalize_text
 from postprocess import reconcile_instrucciones
 
 logger = logging.getLogger(__name__)
+_AUDIT_LOG_LOCK = threading.Lock()
 
 
 def setup_logging(log_dir: Path) -> None:
@@ -147,6 +150,12 @@ def process_single_pdf(
         }
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
+        with _AUDIT_LOG_LOCK:
+            append_pdf_processed_event(
+                Path(__file__).parent / "logs" / "audit.jsonl",
+                source_sha256=result["_pipeline"]["audit"]["source_sha256"],
+                output_path=output_file,
+            )
         return {
             "filename": pdf_path.name,
             "oficioId": oficio_id,
@@ -198,6 +207,12 @@ def process_single_pdf(
     # Escribir JSON
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(llm_result, f, ensure_ascii=False, indent=2)
+    with _AUDIT_LOG_LOCK:
+        append_pdf_processed_event(
+            Path(__file__).parent / "logs" / "audit.jsonl",
+            source_sha256=llm_result["_pipeline"]["audit"]["source_sha256"],
+            output_path=output_file,
+        )
 
     resumen = llm_result.get("resumenGeneral", {})
     cant_instr = resumen.get("cantidadInstrucciones", 0)

@@ -31,6 +31,28 @@ def anchor_digits(source_text: str, value: str) -> dict:
     return _empty_anchor()
 
 
+def anchor_text(source_text: str, value: str) -> dict:
+    target = str(value).strip()
+    if not source_text or not target:
+        return _empty_anchor()
+
+    tokens = [re.escape(token) for token in re.split(r"\s+", target) if token]
+    if not tokens:
+        return _empty_anchor()
+
+    pattern = re.compile(r"\s+".join(tokens), flags=re.IGNORECASE)
+    match = pattern.search(source_text)
+    if match is None:
+        return _empty_anchor()
+
+    return {
+        "found": True,
+        "start": match.start(),
+        "end": match.end(),
+        "snippet": make_snippet(source_text, match.start(), match.end()),
+    }
+
+
 def _canonical_amount(value: str | int | float) -> str | None:
     raw = re.sub(r"[^\d,\.\-]", "", str(value).strip())
     if not raw:

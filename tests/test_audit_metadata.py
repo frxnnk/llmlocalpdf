@@ -17,6 +17,7 @@ class TestAuditMetadata(unittest.TestCase):
             metadata = build_audit_metadata(
                 source_file,
                 "prompt text",
+                extracted_text="texto normalizado",
                 code_dir=Path(tmp),
                 processed_at="2026-06-29T00:00:00+00:00",
             )
@@ -29,6 +30,10 @@ class TestAuditMetadata(unittest.TestCase):
         self.assertEqual(
             metadata["prompt_sha256"],
             hashlib.sha256("prompt text".encode("utf-8")).hexdigest(),
+        )
+        self.assertEqual(
+            metadata["extracted_text_sha256"],
+            hashlib.sha256("texto normalizado".encode("utf-8")).hexdigest(),
         )
         self.assertEqual(metadata["model_id"], "qwen2.5-7b-instruct-q4_k_m")
         self.assertEqual(
@@ -105,6 +110,7 @@ class TestAuditMetadata(unittest.TestCase):
                 needs_ocr=True,
                 warnings=["needs OCR"],
                 prompt_text="prompt text",
+                extracted_text="",
                 script_dir=Path(tmp),
                 error="PDF sin texto extraible",
                 processed_at="2026-06-29T00:00:00+00:00",
@@ -117,6 +123,10 @@ class TestAuditMetadata(unittest.TestCase):
         self.assertEqual(
             pipeline["audit"]["source_sha256"],
             hashlib.sha256(b"pdf-bytes").hexdigest(),
+        )
+        self.assertEqual(
+            pipeline["audit"]["extracted_text_sha256"],
+            hashlib.sha256(b"").hexdigest(),
         )
         self.assertEqual(pipeline["audit"]["processed_at"], "2026-06-29T00:00:00+00:00")
 

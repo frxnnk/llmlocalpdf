@@ -31,6 +31,7 @@ def get_code_commit(code_dir: Path | None = None) -> str | None:
 def build_audit_metadata(
     source_file: Path,
     prompt_text: str,
+    extracted_text: str | None = None,
     model_manifest_path: Path | None = None,
     code_dir: Path | None = None,
     processed_at: str | None = None,
@@ -44,6 +45,10 @@ def build_audit_metadata(
         "model_filename": get_model_filenames(model_spec)[0],
         "processed_at": processed_at or datetime.now(timezone.utc).isoformat(),
     }
+    if extracted_text is not None:
+        metadata["extracted_text_sha256"] = hashlib.sha256(
+            extracted_text.encode("utf-8")
+        ).hexdigest()
 
     if model_manifest_path is not None and model_manifest_path.exists():
         manifest = load_manifest(model_manifest_path)

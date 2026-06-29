@@ -64,6 +64,10 @@ Esto ejecuta automaticamente:
 
 **Tiempo estimado**: 20-40 minutos (depende de la velocidad de internet para bajar los 4.4 GB del modelo).
 
+> `install.bat` descarga desde HuggingFace solo para desarrollo o laboratorio controlado.
+> Para staging bancario o produccion, no descargar el modelo desde el servidor final:
+> usar el paquete offline y el checklist en `docs/staging-offline-checklist.md`.
+
 ### Verificar instalacion
 
 Despues de `install.bat`, estas carpetas deben existir:
@@ -76,6 +80,28 @@ C:\pipeline\llmlocalpdf\
   └── models\                   (contiene el modelo)
       └── qwen2.5-7b-instruct-q4_k_m.gguf  (~4.4 GB)
 ```
+
+Verificar el manifest local del modelo antes de levantar el servidor:
+
+```
+python verify_model.py
+```
+
+El comando debe validar el SHA-256 registrado en `models\model-manifest.json`.
+Si falla o falta el manifest, el artefacto no esta listo para staging bancario.
+
+## Staging offline para entorno bancario
+
+Para un banco, el flujo recomendado es:
+
+1. Descargar dependencias y modelo en una maquina controlada con internet.
+2. Registrar SHA-256, licencia, URL de origen, revision/model card y aprobacion interna.
+3. Armar un paquete offline con codigo, wheels, llama-server, modelo `.gguf` y `models\model-manifest.json`.
+4. Instalar en el servidor final sin salida a internet.
+5. Ejecutar `python verify_model.py` y conservar la salida como evidencia.
+6. Documentar firewall/egress, BitLocker o cifrado equivalente, y procedimiento de rollback.
+
+Checklist detallado: `docs/staging-offline-checklist.md`.
 
 ## Paso 4: Configurar firewall (recomendado)
 

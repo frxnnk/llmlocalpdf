@@ -1,0 +1,24 @@
+{
+  "default_model_id": "qwen2.5-7b-instruct-q4_k_m",
+  "models": [
+    {
+      "id": "qwen2.5-7b-instruct-q4_k_m",
+      "provider": "Qwen / Alibaba Cloud",
+      "repo": "Qwen/Qwen2.5-7B-Instruct-GGUF",
+      "filename": "qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf",
+      "files": [
+        "qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf",
+        "qwen2.5-7b-instruct-q4_k_m-00002-of-00002.gguf"
+      ],
+      "quantization": "Q4_K_M",
+      "license": "Apache-2.0",
+      "source_url": "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GGUF",
+      "status": "candidate",
+      "risk_notes": [
+        "Requires bank legal/procurement approval before production.",
+        "Production deploy must use an offline artifact and recorded SHA-256.",
+        "Dynamic download from Hugging Face is for development only."
+      ]
+    }
+  ]
+}

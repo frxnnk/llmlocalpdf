@@ -121,7 +121,7 @@ def process_single_pdf(
     llm_result.setdefault("schemaVersion", "1.0")
 
     # Limpieza ligera de identificadores en instrucciones
-    llm_result, warnings = reconcile_instrucciones(llm_result)
+    llm_result, warnings = reconcile_instrucciones(llm_result, source_text=text)
 
     if warnings:
         for w in warnings:

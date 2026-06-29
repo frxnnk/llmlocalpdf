@@ -2,6 +2,8 @@
 
 import logging
 
+from schema_contract import validate_schema
+
 logger = logging.getLogger(__name__)
 
 
@@ -16,9 +18,13 @@ def reconcile_instrucciones(llm_result: dict) -> tuple[dict, list[str]]:
     Returns:
         (result_limpio, warnings_list)
     """
-    warnings = []
+    warnings = validate_schema(llm_result)
     result = dict(llm_result)
+    result.setdefault("_validation", {})
+    result["_validation"]["schema_warnings"] = warnings
     instrucciones = result.get("instrucciones", [])
+    if not isinstance(instrucciones, list):
+        return result, warnings
 
     for i, instr in enumerate(instrucciones):
         mov = instr.get("movimiento")

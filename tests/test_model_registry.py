@@ -26,7 +26,17 @@ class TestModelRegistry(unittest.TestCase):
 
         self.assertEqual(spec["id"], "qwen2.5-7b-instruct-q4_k_m")
         self.assertEqual(spec["repo"], "Qwen/Qwen2.5-7B-Instruct-GGUF")
-        self.assertEqual(spec["filename"], "qwen2.5-7b-instruct-q4_k_m.gguf")
+        self.assertEqual(
+            spec["filename"],
+            "qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf",
+        )
+        self.assertEqual(
+            spec["files"],
+            [
+                "qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf",
+                "qwen2.5-7b-instruct-q4_k_m-00002-of-00002.gguf",
+            ],
+        )
         self.assertEqual(spec["license"], "Apache-2.0")
         self.assertIn("source_url", spec)
         self.assertIn("risk_notes", spec)
@@ -77,7 +87,7 @@ class TestModelRegistry(unittest.TestCase):
 
     def test_manifest_roundtrip_and_validation(self):
         with tempfile.TemporaryDirectory() as tmp:
-            model_path = Path(tmp) / "qwen2.5-7b-instruct-q4_k_m.gguf"
+            model_path = Path(tmp) / get_model_spec()["filename"]
             model_path.write_bytes(b"model-contents")
             manifest_path = Path(tmp) / "model-manifest.json"
 
@@ -86,13 +96,16 @@ class TestModelRegistry(unittest.TestCase):
             loaded = load_manifest(manifest_path)
             errors = validate_manifest(model_path, manifest_path)
 
-        self.assertEqual(loaded["filename"], "qwen2.5-7b-instruct-q4_k_m.gguf")
+        self.assertEqual(
+            loaded["filename"],
+            "qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf",
+        )
         self.assertEqual(loaded["license"], "Apache-2.0")
         self.assertEqual(errors, [])
 
     def test_manifest_validation_reports_hash_mismatch(self):
         with tempfile.TemporaryDirectory() as tmp:
-            model_path = Path(tmp) / "qwen2.5-7b-instruct-q4_k_m.gguf"
+            model_path = Path(tmp) / get_model_spec()["filename"]
             model_path.write_bytes(b"model-contents")
             manifest_path = Path(tmp) / "model-manifest.json"
 
@@ -104,9 +117,64 @@ class TestModelRegistry(unittest.TestCase):
 
         self.assertTrue(any("SHA-256 mismatch" in error for error in errors))
 
+    def test_manifest_validation_supports_split_model_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            first_shard = Path(tmp) / "demo-00001-of-00002.gguf"
+            second_shard = Path(tmp) / "demo-00002-of-00002.gguf"
+            first_shard.write_bytes(b"first")
+            second_shard.write_bytes(b"second")
+            manifest_path = Path(tmp) / "model-manifest.json"
+            spec = {
+                "id": "demo",
+                "provider": "Example",
+                "repo": "example/model",
+                "filename": first_shard.name,
+                "files": [first_shard.name, second_shard.name],
+                "license": "Apache-2.0",
+                "source_url": "https://example.invalid/model",
+                "risk_notes": [],
+            }
+
+            manifest = build_manifest([first_shard, second_shard], spec)
+            write_manifest(manifest, manifest_path)
+            errors = validate_manifest(first_shard, manifest_path)
+
+        self.assertEqual(errors, [])
+        self.assertEqual(
+            [entry["filename"] for entry in manifest["files"]],
+            [first_shard.name, second_shard.name],
+        )
+
+    def test_manifest_validation_reports_split_file_hash_mismatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            first_shard = Path(tmp) / "demo-00001-of-00002.gguf"
+            second_shard = Path(tmp) / "demo-00002-of-00002.gguf"
+            first_shard.write_bytes(b"first")
+            second_shard.write_bytes(b"second")
+            manifest_path = Path(tmp) / "model-manifest.json"
+            spec = {
+                "id": "demo",
+                "provider": "Example",
+                "repo": "example/model",
+                "filename": first_shard.name,
+                "files": [first_shard.name, second_shard.name],
+                "license": "Apache-2.0",
+                "source_url": "https://example.invalid/model",
+                "risk_notes": [],
+            }
+
+            manifest = build_manifest([first_shard, second_shard], spec)
+            write_manifest(manifest, manifest_path)
+            second_shard.write_bytes(b"tampered")
+            errors = validate_manifest(first_shard, manifest_path)
+
+        self.assertTrue(
+            any(second_shard.name in error and "SHA-256 mismatch" in error for error in errors)
+        )
+
     def test_verify_local_model_requires_manifest_by_default(self):
         with tempfile.TemporaryDirectory() as tmp:
-            model_path = Path(tmp) / "qwen2.5-7b-instruct-q4_k_m.gguf"
+            model_path = Path(tmp) / get_model_spec()["filename"]
             manifest_path = Path(tmp) / "model-manifest.json"
             model_path.write_bytes(b"model-contents")
 
@@ -116,7 +184,7 @@ class TestModelRegistry(unittest.TestCase):
 
     def test_verify_local_model_allows_unmanifested_dev_mode(self):
         with tempfile.TemporaryDirectory() as tmp:
-            model_path = Path(tmp) / "qwen2.5-7b-instruct-q4_k_m.gguf"
+            model_path = Path(tmp) / get_model_spec()["filename"]
             manifest_path = Path(tmp) / "model-manifest.json"
             model_path.write_bytes(b"model-contents")
 
@@ -130,7 +198,7 @@ class TestModelRegistry(unittest.TestCase):
 
     def test_verify_local_model_allows_missing_model_in_dev_mode(self):
         with tempfile.TemporaryDirectory() as tmp:
-            model_path = Path(tmp) / "qwen2.5-7b-instruct-q4_k_m.gguf"
+            model_path = Path(tmp) / get_model_spec()["filename"]
             manifest_path = Path(tmp) / "model-manifest.json"
 
             errors = verify_local_model(

@@ -6,7 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from model_registry import get_model_spec, validate_manifest
+from model_registry import get_model_filenames, get_model_spec, validate_manifest
 
 
 BASE_DIR = Path(__file__).parent
@@ -38,7 +38,7 @@ def main() -> int:
     args = parser.parse_args()
 
     spec = get_model_spec()
-    model_path = MODELS_DIR / spec["filename"]
+    model_path = MODELS_DIR / get_model_filenames(spec)[0]
     errors = verify_local_model(
         model_path,
         MANIFEST_PATH,

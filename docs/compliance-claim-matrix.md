@@ -6,7 +6,7 @@ Esta matriz define que se puede afirmar hoy, que queda para staging bancario y q
 
 | Item | Estado | Evidencia | Nota |
 |---|---|---|---|
-| Modelo operativo | Implementado | `setup_llm.py` descarga `qwen2.5-7b-instruct-q4_k_m.gguf`; `README.md` describe Qwen2.5 7B | El portal debe decir Qwen2.5-7B-Instruct-GGUF Q4_K_M salvo que hable de una evaluacion futura de Qwen3. |
+| Modelo operativo | Implementado | `setup_llm.py` descarga los shards GGUF `qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf` y `qwen2.5-7b-instruct-q4_k_m-00002-of-00002.gguf`; `README.md` describe Qwen2.5 7B | El portal debe decir Qwen2.5-7B-Instruct-GGUF Q4_K_M salvo que hable de una evaluacion futura de Qwen3. |
 | Motor de inferencia | Implementado | `start_server.bat` ejecuta `llama-server.exe`; `llm_client.py` consume endpoint OpenAI-compatible local | El motor es `llama.cpp`, no una API externa. |
 | Qwen3-8B | Roadmap / evaluacion | No hay referencia operativa en `llmlocalpdf` | No debe figurar como modelo implementado hasta migrar y medir contra golden set. |
 

@@ -7,7 +7,7 @@ Este checklist convierte la descarga de Qwen/HuggingFace en un artefacto control
 - Usar una maquina temporal aprobada para descarga de dependencias.
 - Registrar operador, fecha, IP/red y sistema operativo.
 - Descargar codigo fuente desde el commit aprobado.
-- Descargar wheels de Python, `llama-server.exe` y el modelo `qwen2.5-7b-instruct-q4_k_m.gguf`.
+- Descargar wheels de Python, `llama-server.exe` y los shards GGUF del modelo Qwen2.5 `Q4_K_M`.
 - No procesar oficios reales en esta maquina.
 
 Evidencia:
@@ -19,9 +19,9 @@ Evidencia:
 
 ## 2. Captura de SHA-256 y manifest del modelo
 
-- Calcular SHA-256 del `.gguf` descargado.
+- Calcular SHA-256 de cada shard `.gguf` descargado.
 - Generar o revisar `models\model-manifest.json`.
-- Registrar `model_id`, `repo`, `filename`, `license`, `source_url`, `sha256` y fecha.
+- Registrar `model_id`, `repo`, `filename`, `files`, `license`, `source_url`, `sha256` y fecha.
 - Ejecutar:
 
 ```powershell
@@ -32,7 +32,7 @@ Evidencia:
 
 - `models\model-manifest.json`.
 - Salida de `python verify_model.py`.
-- Captura del SHA-256 del modelo y del paquete offline.
+- Captura de los SHA-256 de los shards del modelo y del paquete offline.
 
 ## 3. Contenido minimo del paquete offline
 
@@ -41,7 +41,8 @@ El paquete offline debe contener:
 - Codigo fuente del pipeline.
 - `requirements.txt` y wheels locales necesarios.
 - `llama-server.exe` y evidencia SHA-256.
-- `models\qwen2.5-7b-instruct-q4_k_m.gguf`.
+- `models\qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf`.
+- `models\qwen2.5-7b-instruct-q4_k_m-00002-of-00002.gguf`.
 - `models\model-manifest.json`.
 - `DEPLOY.md`.
 - Este checklist.

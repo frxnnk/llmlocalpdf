@@ -10,10 +10,12 @@ import sys
 import zipfile
 from pathlib import Path
 
+from huggingface_hub import hf_hub_download
 import requests
 
 from model_registry import (
     build_manifest,
+    get_model_filenames,
     get_model_spec,
     validate_manifest,
     write_manifest,
@@ -119,6 +121,7 @@ def model_download_accepted(explicit_accept: bool) -> bool:
 
 def verify_or_manifest_existing_model(model_path: Path, model_spec: dict) -> None:
     """Verify an existing model or create a first local manifest."""
+    model_paths = [MODELS_DIR / filename for filename in get_model_filenames(model_spec)]
     if MANIFEST_PATH.exists():
         errors = validate_manifest(model_path, MANIFEST_PATH)
         if errors:
@@ -129,7 +132,14 @@ def verify_or_manifest_existing_model(model_path: Path, model_spec: dict) -> Non
         print(f"[OK] Modelo verificado contra manifest: {model_path}")
         return
 
-    manifest = build_manifest(model_path, model_spec)
+    missing = [path for path in model_paths if not path.exists()]
+    if missing:
+        print("ERROR: Faltan archivos del modelo y no existe manifest previo:")
+        for path in missing:
+            print(f"  - {path}")
+        sys.exit(1)
+
+    manifest = build_manifest(model_paths, model_spec)
     write_manifest(manifest, MANIFEST_PATH)
     print(f"[WARN] Modelo existente sin manifest previo: {model_path}")
     print(f"[WARN] Se creo manifest local en: {MANIFEST_PATH}")
@@ -137,16 +147,18 @@ def verify_or_manifest_existing_model(model_path: Path, model_spec: dict) -> Non
 
 
 def download_model(accept_download: bool = False):
-    """Descargar modelo allowlisted via huggingface-cli."""
+    """Descargar modelo allowlisted via Hugging Face Hub API."""
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     model_spec = get_model_spec()
-    model_filename = model_spec["filename"]
+    model_filenames = get_model_filenames(model_spec)
+    model_filename = model_filenames[0]
     model_repo = model_spec["repo"]
-    model_path = MODELS_DIR / model_filename
+    model_paths = [MODELS_DIR / filename for filename in model_filenames]
+    model_path = model_paths[0]
 
-    if model_path.exists():
-        size_gb = model_path.stat().st_size / (1024**3)
-        print(f"[OK] Modelo ya existe: {model_path} ({size_gb:.1f} GB)")
+    if all(path.exists() for path in model_paths):
+        size_gb = sum(path.stat().st_size for path in model_paths) / (1024**3)
+        print(f"[OK] Modelo ya existe: {model_path} ({size_gb:.1f} GB total)")
         verify_or_manifest_existing_model(model_path, model_spec)
         return
 
@@ -157,31 +169,37 @@ def download_model(accept_download: bool = False):
         print("Para staging bancario, usar paquete offline + manifest SHA-256 aprobado.")
         sys.exit(1)
 
-    print(f"[2/2] Descargando modelo {model_filename} (~4.4 GB)...")
+    print(f"[2/2] Descargando modelo {model_spec['id']}...")
     print(f"  Repo: {model_repo}")
     print(f"  Destino: {MODELS_DIR}")
+    print("  Archivos:")
+    for filename in model_filenames:
+        print(f"    - {filename}")
     print(f"  Licencia declarada: {model_spec['license']}")
     print(f"  Fuente: {model_spec['source_url']}")
     print("  Esto puede tardar varios minutos...\n")
 
-    subprocess.run(
-        [
-            sys.executable, "-m", "huggingface_hub.commands.huggingface_cli",
-            "download", model_repo, model_filename,
-            "--local-dir", str(MODELS_DIR),
-        ],
-        check=True,
-    )
+    for filename, path in zip(model_filenames, model_paths):
+        if path.exists():
+            print(f"  [OK] Ya existe: {path.name}")
+            continue
+        hf_hub_download(
+            repo_id=model_repo,
+            filename=filename,
+            local_dir=MODELS_DIR,
+        )
 
-    if model_path.exists():
-        size_gb = model_path.stat().st_size / (1024**3)
-        print(f"\n[OK] Modelo descargado: {model_path} ({size_gb:.1f} GB)")
-        manifest = build_manifest(model_path, model_spec)
+    missing = [path for path in model_paths if not path.exists()]
+    if not missing:
+        size_gb = sum(path.stat().st_size for path in model_paths) / (1024**3)
+        print(f"\n[OK] Modelo descargado: {model_path} ({size_gb:.1f} GB total)")
+        manifest = build_manifest(model_paths, model_spec)
         write_manifest(manifest, MANIFEST_PATH)
         print(f"[OK] Manifest escrito: {MANIFEST_PATH}")
     else:
-        print("\nERROR: No se encontro el archivo .gguf esperado despues de la descarga.")
-        print(f"Esperado: {model_path}")
+        print("\nERROR: No se encontraron todos los archivos .gguf esperados.")
+        for path in missing:
+            print(f"  - {path}")
         sys.exit(1)
 
 
@@ -194,7 +212,7 @@ def print_next_steps():
             server_exe = found[0]
 
     model_spec = get_model_spec()
-    model_path = MODELS_DIR / model_spec["filename"]
+    model_path = MODELS_DIR / get_model_filenames(model_spec)[0]
     if not model_path.exists():
         gguf_files = list(MODELS_DIR.rglob("*.gguf"))
         if gguf_files:

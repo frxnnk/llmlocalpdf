@@ -8,7 +8,7 @@ Pipeline automatizado que procesa oficios judiciales argentinos en PDF, extrae t
 
 - **Python 3.10+** (marcar "Add to PATH" durante la instalación)
 - **Windows 10/11 o Windows Server 2019+**
-- **~12 GB de disco** (modelo 4.4 GB + llama.cpp + dependencias)
+- **~12 GB de disco** (modelo GGUF split ~4.4 GB total + llama.cpp + dependencias)
 - **~10 GB de RAM libres** (modelo cargado en memoria)
 
 ## Instalación (una sola vez)
@@ -24,10 +24,10 @@ Pipeline automatizado que procesa oficios judiciales argentinos en PDF, extrae t
 - Crea entorno virtual Python (`venv/`)
 - Instala dependencias (`requirements.txt`)
 - Descarga llama.cpp server (~20 MB desde GitHub)
-- Descarga modelo Qwen2.5-7B-Instruct Q4_K_M (~4.4 GB desde HuggingFace)
+- Descarga modelo Qwen2.5-7B-Instruct Q4_K_M (GGUF split, ~4.4 GB total desde HuggingFace)
 - Crea carpetas de trabajo (`input/`, `output/`)
 
-> La primera instalación tarda ~30 minutos dependiendo de la velocidad de internet (el modelo pesa 4.4 GB).
+> La primera instalación tarda ~30 minutos dependiendo de la velocidad de internet (el modelo pesa ~4.4 GB total).
 
 ## Uso diario
 
@@ -104,7 +104,7 @@ Si el JSON de salida ya existe para un PDF, se skipea automáticamente. Borrar e
 
 - **CPU**: Intel Xeon E-2336 (6 cores / 12 threads) @ 2.90 GHz — sin GPU
 - **RAM**: 32 GB
-- **Modelo**: Qwen2.5-7B Q4_K_M (~4.4 GB en disco, ~7-8 GB en RAM)
+- **Modelo**: Qwen2.5-7B Q4_K_M (GGUF split, ~4.4 GB en disco, ~7-8 GB en RAM)
 - **Rendimiento estimado**: ~2 min/PDF. Para 100 PDFs/día = ~3.3 horas.
 
 ### Setup paso a paso
@@ -113,7 +113,7 @@ Si el JSON de salida ya existe para un PDF, se skipea automáticamente. Borrar e
 SETUP (una vez, IT):
   1. Instalar Python 3.10+ (marcar "Add to PATH")
   2. git clone https://github.com/frxnnk/llmlocalpdf.git C:\pipeline\llmlocalpdf
-  3. Doble-click install.bat  (~30 min, descarga modelo 4.4 GB)
+  3. Doble-click install.bat  (~30 min, descarga modelo ~4.4 GB)
 
 USO DIARIO (el equipo):
   1. Copiar PDFs a input\

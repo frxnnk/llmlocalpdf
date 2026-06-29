@@ -4,7 +4,7 @@ import logging
 
 from cbu import is_valid_cbu, normalize_cbu
 from schema_contract import validate_schema
-from source_anchor import anchor_amount, anchor_digits
+from source_anchor import anchor_amount, anchor_digits, anchor_text
 
 logger = logging.getLogger(__name__)
 
@@ -57,21 +57,33 @@ def reconcile_instrucciones(llm_result: dict, source_text: str | None = None) ->
                 cleaned = str(identificador).strip()
                 fondos["identificador"] = cleaned
 
-                if fondos.get("tipo") != "cbu":
-                    continue
-
-                normalized = normalize_cbu(cleaned)
-                if is_valid_cbu(normalized):
-                    fondos["identificador"] = normalized
-                else:
-                    field = f"instrucciones[{i}].movimiento.{campo_fondos}.identificador"
-                    warning = f"{field}: CBU invalida"
-                    warnings.append(warning)
-                    _mark_not_processable(instr, f"CBU invalida en {campo_fondos}.identificador")
+                if fondos.get("tipo") == "cbu":
+                    normalized = normalize_cbu(cleaned)
+                    if is_valid_cbu(normalized):
+                        fondos["identificador"] = normalized
+                    else:
+                        field = f"instrucciones[{i}].movimiento.{campo_fondos}.identificador"
+                        warning = f"{field}: CBU invalida"
+                        warnings.append(warning)
+                        _mark_not_processable(
+                            instr, f"CBU invalida en {campo_fondos}.identificador"
+                        )
 
                 if source_text is not None:
                     field = f"instrucciones[{i}].movimiento.{campo_fondos}.identificador"
                     source_anchors[field] = anchor_digits(source_text, fondos["identificador"])
+
+        beneficiario = mov.get("beneficiario")
+        if source_text is not None and isinstance(beneficiario, dict):
+            nombre = beneficiario.get("nombre")
+            if nombre is not None and str(nombre).strip():
+                field = f"instrucciones[{i}].movimiento.beneficiario.nombre"
+                source_anchors[field] = anchor_text(source_text, str(nombre))
+
+            cuit = beneficiario.get("cuit")
+            if cuit is not None and str(cuit).strip():
+                field = f"instrucciones[{i}].movimiento.beneficiario.cuit"
+                source_anchors[field] = anchor_digits(source_text, str(cuit))
 
         importe = mov.get("importe")
         if source_text is not None and isinstance(importe, dict) and "valor" in importe:

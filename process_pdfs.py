@@ -18,6 +18,7 @@ from audit_metadata import build_audit_metadata
 from llm_client import LLMClient
 from pdf_extract import extract_text, normalize_text
 from postprocess import reconcile_instrucciones
+from review_report import write_review_report
 
 logger = logging.getLogger(__name__)
 _AUDIT_LOG_LOCK = threading.Lock()
@@ -61,6 +62,7 @@ def build_pipeline_metadata(
     warnings: list[str],
     prompt_text: str,
     script_dir: Path,
+    extracted_text: str | None = None,
     error: str | None = None,
     processed_at: str | None = None,
 ) -> dict:
@@ -73,6 +75,7 @@ def build_pipeline_metadata(
         "audit": build_audit_metadata(
             pdf_path,
             prompt_text,
+            extracted_text=extracted_text,
             model_manifest_path=script_dir / "models" / "model-manifest.json",
             code_dir=script_dir,
             processed_at=timestamp,
@@ -81,6 +84,15 @@ def build_pipeline_metadata(
     if error is not None:
         pipeline["error"] = error
     return pipeline
+
+
+def write_result_outputs(result: dict, output_file: Path, source_filename: str) -> Path:
+    with open(output_file, "w", encoding="utf-8") as f:
+        json.dump(result, f, ensure_ascii=False, indent=2)
+
+    report_file = output_file.with_name(f"{output_file.stem}.review.html")
+    write_review_report(result, report_file, source_filename=source_filename)
+    return report_file
 
 
 def build_index_rows(input_dir: Path, output_dir: Path, new_rows: list[dict]) -> list[dict]:
@@ -145,11 +157,11 @@ def process_single_pdf(
                 warnings=[],
                 prompt_text=system_prompt,
                 script_dir=Path(__file__).parent,
+                extracted_text="",
                 error=error_message,
             ),
         }
-        with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(result, f, ensure_ascii=False, indent=2)
+        write_result_outputs(result, output_file, source_filename=pdf_path.name)
         with _AUDIT_LOG_LOCK:
             append_pdf_processed_event(
                 Path(__file__).parent / "logs" / "audit.jsonl",
@@ -202,11 +214,11 @@ def process_single_pdf(
         warnings=warnings,
         prompt_text=system_prompt,
         script_dir=Path(__file__).parent,
+        extracted_text=text,
     )
 
     # Escribir JSON
-    with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(llm_result, f, ensure_ascii=False, indent=2)
+    write_result_outputs(llm_result, output_file, source_filename=pdf_path.name)
     with _AUDIT_LOG_LOCK:
         append_pdf_processed_event(
             Path(__file__).parent / "logs" / "audit.jsonl",

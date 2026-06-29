@@ -17,6 +17,7 @@ from model_registry import (
     validate_manifest,
     write_manifest,
 )
+from verify_model import verify_local_model
 
 
 class TestModelRegistry(unittest.TestCase):
@@ -102,6 +103,43 @@ class TestModelRegistry(unittest.TestCase):
             errors = validate_manifest(model_path, manifest_path)
 
         self.assertTrue(any("SHA-256 mismatch" in error for error in errors))
+
+    def test_verify_local_model_requires_manifest_by_default(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            model_path = Path(tmp) / "qwen2.5-7b-instruct-q4_k_m.gguf"
+            manifest_path = Path(tmp) / "model-manifest.json"
+            model_path.write_bytes(b"model-contents")
+
+            errors = verify_local_model(model_path, manifest_path)
+
+        self.assertTrue(any("manifest" in error.lower() for error in errors))
+
+    def test_verify_local_model_allows_unmanifested_dev_mode(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            model_path = Path(tmp) / "qwen2.5-7b-instruct-q4_k_m.gguf"
+            manifest_path = Path(tmp) / "model-manifest.json"
+            model_path.write_bytes(b"model-contents")
+
+            errors = verify_local_model(
+                model_path,
+                manifest_path,
+                allow_unmanifested=True,
+            )
+
+        self.assertEqual(errors, [])
+
+    def test_verify_local_model_allows_missing_model_in_dev_mode(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            model_path = Path(tmp) / "qwen2.5-7b-instruct-q4_k_m.gguf"
+            manifest_path = Path(tmp) / "model-manifest.json"
+
+            errors = verify_local_model(
+                model_path,
+                manifest_path,
+                allow_unmanifested=True,
+            )
+
+        self.assertEqual(errors, [])
 
 
 if __name__ == "__main__":

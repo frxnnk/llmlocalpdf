@@ -39,7 +39,7 @@ pip install -r "%SCRIPT_DIR%requirements.txt"
 
 echo.
 echo [3/4] Descargando llama.cpp server y modelo...
-python "%SCRIPT_DIR%setup_llm.py"
+python "%SCRIPT_DIR%setup_llm.py" --accept-model-download
 
 echo.
 echo [4/4] Creando carpetas de trabajo...

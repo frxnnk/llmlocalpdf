@@ -12,6 +12,11 @@ if not exist "%SERVER_EXE%" (
     pause & exit /b 1
 )
 
+python "%SCRIPT_DIR%verify_model.py"
+if errorlevel 1 (
+    pause & exit /b 1
+)
+
 echo Iniciando llama-server en http://127.0.0.1:8080 ...
 echo Presionar Ctrl+C para detener
 "%SERVER_EXE%" -m "%MODEL%" --host 127.0.0.1 --port 8080 -c 4096 -t 6

@@ -1,3 +1,6 @@
+# Worktrees locales de desarrollo
+.worktrees/
+
 # Modelo LLM (~4.4 GB) - se descarga con install.bat
 models/
 

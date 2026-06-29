@@ -5,18 +5,22 @@ import json
 import logging
 import os
 import sys
+import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from tqdm import tqdm
 
+from audit_log import append_pdf_processed_event
+from audit_metadata import build_audit_metadata
 from llm_client import LLMClient
 from pdf_extract import extract_text, normalize_text
 from postprocess import reconcile_instrucciones
 
 logger = logging.getLogger(__name__)
+_AUDIT_LOG_LOCK = threading.Lock()
 
 
 def setup_logging(log_dir: Path) -> None:
@@ -51,6 +55,62 @@ def load_prompt(path: str) -> str:
         return f.read()
 
 
+def build_pipeline_metadata(
+    pdf_path: Path,
+    needs_ocr: bool,
+    warnings: list[str],
+    prompt_text: str,
+    script_dir: Path,
+    error: str | None = None,
+    processed_at: str | None = None,
+) -> dict:
+    timestamp = processed_at or datetime.now(timezone.utc).isoformat()
+    pipeline = {
+        "source_file": pdf_path.name,
+        "needs_ocr": needs_ocr,
+        "warnings": warnings,
+        "processed_at": timestamp,
+        "audit": build_audit_metadata(
+            pdf_path,
+            prompt_text,
+            model_manifest_path=script_dir / "models" / "model-manifest.json",
+            code_dir=script_dir,
+            processed_at=timestamp,
+        ),
+    }
+    if error is not None:
+        pipeline["error"] = error
+    return pipeline
+
+
+def build_index_rows(input_dir: Path, output_dir: Path, new_rows: list[dict]) -> list[dict]:
+    rows_by_filename = {row["filename"]: dict(row) for row in new_rows}
+
+    for pdf_path in sorted(input_dir.glob("*.pdf")):
+        if pdf_path.name in rows_by_filename:
+            continue
+
+        output_file = output_dir / f"{pdf_path.stem}.json"
+        if not output_file.exists():
+            continue
+
+        with open(output_file, encoding="utf-8") as f:
+            result = json.load(f)
+
+        resumen = result.get("resumenGeneral", {})
+        pipeline = result.get("_pipeline", {})
+        rows_by_filename[pdf_path.name] = {
+            "filename": pdf_path.name,
+            "oficioId": result.get("oficioId", ""),
+            "cantidadInstrucciones": resumen.get("cantidadInstrucciones", 0),
+            "contieneMovimientosDinero": resumen.get("contieneMovimientosDinero", False),
+            "needs_ocr": pipeline.get("needs_ocr", False),
+            "warnings_count": len(pipeline.get("warnings", [])),
+        }
+
+    return sorted(rows_by_filename.values(), key=lambda row: row["filename"])
+
+
 def process_single_pdf(
     pdf_path: Path,
     output_dir: Path,
@@ -75,19 +135,27 @@ def process_single_pdf(
 
     if needs_ocr:
         logger.warning("%s: sin texto extraíble (needs_ocr=True)", stem)
+        error_message = "PDF sin texto extraíble, requiere OCR"
         result = {
             "schemaVersion": "1.0",
             "oficioId": oficio_id,
-            "_pipeline": {
-                "source_file": pdf_path.name,
-                "needs_ocr": True,
-                "error": "PDF sin texto extraíble, requiere OCR",
-                "warnings": [],
-                "processed_at": datetime.now().isoformat(),
-            },
+            "_pipeline": build_pipeline_metadata(
+                pdf_path,
+                needs_ocr=True,
+                warnings=[],
+                prompt_text=system_prompt,
+                script_dir=Path(__file__).parent,
+                error=error_message,
+            ),
         }
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
+        with _AUDIT_LOG_LOCK:
+            append_pdf_processed_event(
+                Path(__file__).parent / "logs" / "audit.jsonl",
+                source_sha256=result["_pipeline"]["audit"]["source_sha256"],
+                output_path=output_file,
+            )
         return {
             "filename": pdf_path.name,
             "oficioId": oficio_id,
@@ -121,23 +189,30 @@ def process_single_pdf(
     llm_result.setdefault("schemaVersion", "1.0")
 
     # Limpieza ligera de identificadores en instrucciones
-    llm_result, warnings = reconcile_instrucciones(llm_result)
+    llm_result, warnings = reconcile_instrucciones(llm_result, source_text=text)
 
     if warnings:
         for w in warnings:
             logger.warning("%s: %s", stem, w)
 
     # Agregar metadata del pipeline separada del schema Cedeira
-    llm_result["_pipeline"] = {
-        "source_file": pdf_path.name,
-        "needs_ocr": False,
-        "warnings": warnings,
-        "processed_at": datetime.now().isoformat(),
-    }
+    llm_result["_pipeline"] = build_pipeline_metadata(
+        pdf_path,
+        needs_ocr=False,
+        warnings=warnings,
+        prompt_text=system_prompt,
+        script_dir=Path(__file__).parent,
+    )
 
     # Escribir JSON
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(llm_result, f, ensure_ascii=False, indent=2)
+    with _AUDIT_LOG_LOCK:
+        append_pdf_processed_event(
+            Path(__file__).parent / "logs" / "audit.jsonl",
+            source_sha256=llm_result["_pipeline"]["audit"]["source_sha256"],
+            output_path=output_file,
+        )
 
     resumen = llm_result.get("resumenGeneral", {})
     cant_instr = resumen.get("cantidadInstrucciones", 0)
@@ -266,8 +341,9 @@ def main() -> None:
 
     # Escribir index.jsonl
     index_file = output_dir / "index.jsonl"
+    all_index_rows = build_index_rows(input_dir, output_dir, index_rows)
     with open(index_file, "w", encoding="utf-8") as f:
-        for row in sorted(index_rows, key=lambda r: r["filename"]):
+        for row in all_index_rows:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     logger.info(

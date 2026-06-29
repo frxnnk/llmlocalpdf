@@ -34,12 +34,24 @@ if not exist "%SCRIPT_DIR%venv" (
 call "%SCRIPT_DIR%venv\Scripts\activate.bat"
 
 echo [2/4] Instalando dependencias Python...
-pip install --upgrade pip
-pip install -r "%SCRIPT_DIR%requirements.txt"
+python -m pip install --upgrade pip
+if %errorlevel% neq 0 (
+    echo ERROR: No se pudo actualizar pip.
+    pause & exit /b 1
+)
+python -m pip install -r "%SCRIPT_DIR%requirements.txt"
+if %errorlevel% neq 0 (
+    echo ERROR: No se pudieron instalar las dependencias.
+    pause & exit /b 1
+)
 
 echo.
 echo [3/4] Descargando llama.cpp server y modelo...
-python "%SCRIPT_DIR%setup_llm.py"
+python "%SCRIPT_DIR%setup_llm.py" --accept-model-download
+if %errorlevel% neq 0 (
+    echo ERROR: setup_llm.py fallo.
+    pause & exit /b 1
+)
 
 echo.
 echo [4/4] Creando carpetas de trabajo...

@@ -193,7 +193,7 @@ class TestReconcileInstrucciones(unittest.TestCase):
                 "tipoMovimiento": "transferencia_mep",
                 "confianzaTipoMovimiento": 0.9,
                 "origenFondos": {"tipo": "cuenta_judicial", "identificador": "123-456"},
-                "destinoFondos": {"tipo": "cbu", "identificador": self.VALID_CBU},
+                "destinoFondos": {"tipo": "cbu", "identificador": "0110-0404 0000000000 0017"},
                 "importe": {"valor": 1000.0, "moneda": "ARS"},
                 "beneficiario": {"tipo": "persona", "nombre": "Test", "cuit": ""},
             },
@@ -205,6 +205,35 @@ class TestReconcileInstrucciones(unittest.TestCase):
         self.assertEqual(
             corrected["instrucciones"][0]["movimiento"]["destinoFondos"]["identificador"],
             self.VALID_CBU,
+        )
+
+    def test_invalid_destino_cbu_blocks_instruction(self):
+        """CBU invalida marca la instruccion como no procesable."""
+        instr = {
+            "instructionId": "1",
+            "tipoInstruccion": "movimiento_dinero",
+            "descripcionIA": "test",
+            "movimiento": {
+                "tipoMovimiento": "transferencia_mep",
+                "confianzaTipoMovimiento": 0.9,
+                "origenFondos": {"tipo": "cuenta_judicial", "identificador": "123-456"},
+                "destinoFondos": {"tipo": "cbu", "identificador": "0110040400000000000018"},
+                "importe": {"valor": 1000.0, "moneda": "ARS"},
+                "beneficiario": {"tipo": "persona", "nombre": "Test", "cuit": ""},
+            },
+            "ejecutabilidad": {"esProcesable": True, "motivoNoProcesable": None},
+        }
+        result = self._make_result([instr])
+
+        corrected, warnings = reconcile_instrucciones(result)
+
+        self.assertFalse(corrected["instrucciones"][0]["ejecutabilidad"]["esProcesable"])
+        self.assertIn(
+            "CBU invalida",
+            corrected["instrucciones"][0]["ejecutabilidad"]["motivoNoProcesable"],
+        )
+        self.assertTrue(
+            any("instrucciones[0].movimiento.destinoFondos.identificador" in warning for warning in warnings)
         )
 
     def test_cuenta_judicial_not_validated_as_cbu(self):
@@ -243,7 +272,7 @@ class TestReconcileInstrucciones(unittest.TestCase):
                 "tipoMovimiento": "transferencia_mep",
                 "confianzaTipoMovimiento": 0.9,
                 "origenFondos": {"tipo": "cbu", "identificador": "  0110040400000000000017  "},
-                "destinoFondos": {"tipo": "cbu", "identificador": "\t0720000400000000000019\n"},
+                "destinoFondos": {"tipo": "cbu", "identificador": "\t0110040400000000000017\n"},
                 "importe": {"valor": 1000.0, "moneda": "ARS"},
                 "beneficiario": {"tipo": "persona", "nombre": "Test", "cuit": ""},
             },
@@ -258,7 +287,7 @@ class TestReconcileInstrucciones(unittest.TestCase):
         )
         self.assertEqual(
             corrected["instrucciones"][0]["movimiento"]["destinoFondos"]["identificador"],
-            "0720000400000000000019",
+            "0110040400000000000017",
         )
 
     def test_instruction_without_movimiento_skipped(self):

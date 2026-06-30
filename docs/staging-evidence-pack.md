@@ -50,6 +50,9 @@ Estos archivos se generan localmente y no se commitean:
 - Salida textual de `golden_eval.py`.
 - Salida textual de `python -m unittest discover -s tests -v`.
 
+El manifiesto versionable de cierre queda en `docs/evidence-runs/2026-06-29-staging-evidence-closure.md`.
+El ZIP operativo se genera localmente en `test_output/` y debe verificarse contra los hashes del manifiesto.
+
 ## Evidencia minima dentro del JSON
 
 `test_output\simple_transfer.json` debe incluir:

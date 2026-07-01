@@ -306,6 +306,12 @@ def main() -> None:
 
     if not pending:
         logger.info("Todos los PDFs ya fueron procesados")
+        index_file = output_dir / "index.jsonl"
+        all_index_rows = build_index_rows(input_dir, output_dir, [])
+        with open(index_file, "w", encoding="utf-8") as f:
+            for row in all_index_rows:
+                f.write(json.dumps(row, ensure_ascii=False) + "\n")
+        logger.info("Index: %s", index_file)
         sys.exit(0)
 
     logger.info("Procesando %d PDFs con %d workers", len(pending), args.workers)

@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "1.0",
+  "_pipeline": {
+    "needs_ocr": true,
+    "warnings": [],
+    "error": "PDF sin texto extraíble, requiere OCR"
+  }
+}

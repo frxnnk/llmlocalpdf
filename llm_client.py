@@ -64,8 +64,24 @@ class LLMClient:
 
                 resp.raise_for_status()
 
-                data = resp.json()
-                return data["choices"][0]["message"]["content"]
+                try:
+                    data = resp.json()
+                except ValueError as exc:
+                    raise RuntimeError("Malformed LLM response: invalid JSON body") from exc
+
+                try:
+                    content = data["choices"][0]["message"]["content"]
+                except (KeyError, IndexError, TypeError) as exc:
+                    raise RuntimeError(
+                        "Malformed LLM response: missing choices[0].message.content"
+                    ) from exc
+
+                if not isinstance(content, str):
+                    raise RuntimeError(
+                        "Malformed LLM response: choices[0].message.content must be text"
+                    )
+
+                return content
 
             except requests.exceptions.RequestException as exc:
                 last_exc = exc

@@ -2,12 +2,12 @@
 
 Este paquete define la evidencia minima para defender el corte de staging sin depender de Vercel ni de infraestructura bancaria real. No incluye modelos, PDFs, outputs ni logs versionados.
 
-## Baseline mergeado
+## Baseline tecnico actual
 
 | Repo | Branch | SHA | Nota |
 |---|---|---|---|
-| `llmlocalpdf` | `main` | `9ab21d805ce64fdd5846beddfc91ece2bac88475` | PR tecnico inicial mergeado con merge commit. |
-| `cedeira-ia-compliance` | `main` | `3a87ea06d61cb35d01c92122ee74b8e60cf90285` | Portal/documentacion alineado; Vercel no fue gate por permisos externos. |
+| `llmlocalpdf` | `main` | `ecc5e6ec9541ab564c6da7339c7fd792d13ff80b` | PRs tecnicos #2 y #3 mergeados; fuente tecnica vigente. |
+| `cedeira-ia-compliance` | `docs/knowledge-base` | `362aac8030bcbcaaa74b6b1a9961d54ade530f33` | Portal fuente de verdad en PR draft; Vercel bloqueado por permisos externos. |
 
 Tags sugeridos para congelar este corte:
 
@@ -50,7 +50,8 @@ Estos archivos se generan localmente y no se commitean:
 - Salida textual de `golden_eval.py`.
 - Salida textual de `python -m unittest discover -s tests -v`.
 
-El manifiesto versionable de cierre queda en `docs/evidence-runs/2026-06-29-staging-evidence-closure.md`.
+El manifiesto historico de cierre queda en `docs/evidence-runs/2026-06-29-staging-evidence-closure.md`.
+La actualizacion tecnica vigente queda en `docs/evidence-runs/2026-07-01-technical-source-alignment.md`.
 El ZIP operativo se genera localmente en `test_output/` y debe verificarse contra los hashes del manifiesto.
 
 ## Evidencia minima dentro del JSON
@@ -108,5 +109,5 @@ Sigue requiriendo staging bancario real:
 - Evidencia de firewall/no egress.
 - Cifrado de volumen aprobado por el banco.
 - Reglas de retencion/borrado.
-- Validadores deterministas completos de CUIT e importes.
+- Integrar los helpers de CUIT/importes al pipeline como validacion go/no-go.
 - Citas por pagina de PDF, no solo offsets del texto normalizado.

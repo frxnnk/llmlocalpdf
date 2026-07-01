@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "1.0",
+  "resumenGeneral": {
+    "cantidadInstrucciones": 1,
+    "contieneMovimientosDinero": true,
+    "contieneInstruccionesNoFinancieras": false
+  },
+  "instrucciones": [
+    {
+      "tipoInstruccion": "movimiento_dinero",
+      "descripcionIA": "La orden menciona embargo y transferencia futura con cuenta destino incierta",
+      "movimiento": {
+        "origenFondos": {
+          "tipo": "cuenta_judicial",
+          "identificador": ""
+        },
+        "destinoFondos": {
+          "tipo": "desconocido",
+          "identificador": ""
+        },
+        "importe": {
+          "valor": 75000.0,
+          "moneda": "ARS"
+        },
+        "beneficiario": {
+          "nombre": "",
+          "cuit": ""
+        }
+      },
+      "ejecutabilidad": {
+        "esProcesable": false,
+        "motivoNoProcesable": "Destino o suficiencia de fondos ambiguos"
+      }
+    }
+  ]
+}

@@ -9,20 +9,40 @@ from typing import Any
 ALLOWED_FONDOS_TIPOS = {
     "cbu",
     "cuenta_judicial",
+    "fondo",
     "organismo",
     "plazo_fijo",
+    "titulo",
     "desconocido",
 }
 
 ALLOWED_INSTRUCCION_TIPOS = {
+    "administrativa",
     "movimiento_dinero",
     "no_financiera",
     "desconocida",
 }
 
+ALLOWED_MOVIMIENTO_TIPOS = {
+    "transferencia_mep",
+    "movimiento_core",
+    "plazo_fijo_alta",
+    "plazo_fijo_baja",
+    "inversion_titulos",
+    "rescate_titulos",
+    "retencion_legal",
+    "desconocido",
+}
+
+ALLOWED_MONEDAS = {"ARS"}
+
 
 def _warn(warnings: list[str], path: str, message: str) -> None:
     warnings.append(f"{path}: {message}")
+
+
+def _is_number(value: Any) -> bool:
+    return isinstance(value, Number) and not isinstance(value, bool)
 
 
 def _validate_required_object(
@@ -91,11 +111,37 @@ def validate_schema(result: dict[str, Any]) -> list[str]:
         _warn(warnings, "instrucciones", "expected list")
         return warnings
 
+    if isinstance(resumen, dict) and "cantidadInstrucciones" in resumen:
+        cantidad = resumen.get("cantidadInstrucciones")
+        if not isinstance(cantidad, int) or isinstance(cantidad, bool):
+            _warn(warnings, "resumenGeneral.cantidadInstrucciones", "expected integer")
+        elif cantidad != len(instrucciones):
+            _warn(
+                warnings,
+                "resumenGeneral.cantidadInstrucciones",
+                f"expected {len(instrucciones)}, got {cantidad}",
+            )
+
     for index, instruccion in enumerate(instrucciones):
         path = f"instrucciones[{index}]"
         if not isinstance(instruccion, dict):
             _warn(warnings, path, "expected object")
             continue
+
+        expected_instruction_id = str(index + 1)
+        instruction_id = instruccion.get("instructionId")
+        if not isinstance(instruction_id, str) or not instruction_id.strip():
+            _warn(warnings, f"{path}.instructionId", "missing")
+        elif instruction_id != expected_instruction_id:
+            _warn(
+                warnings,
+                f"{path}.instructionId",
+                f"expected {expected_instruction_id!r}, got {instruction_id!r}",
+            )
+
+        descripcion = instruccion.get("descripcionIA")
+        if not isinstance(descripcion, str) or not descripcion.strip():
+            _warn(warnings, f"{path}.descripcionIA", "missing")
 
         tipo_instruccion = instruccion.get("tipoInstruccion")
         if tipo_instruccion not in ALLOWED_INSTRUCCION_TIPOS:
@@ -111,18 +157,34 @@ def validate_schema(result: dict[str, Any]) -> list[str]:
             path,
             warnings,
         )
-        if ejecutabilidad is not None and "esProcesable" not in ejecutabilidad:
-            _warn(warnings, f"{path}.ejecutabilidad.esProcesable", "missing")
+        if ejecutabilidad is not None:
+            if "esProcesable" not in ejecutabilidad:
+                _warn(warnings, f"{path}.ejecutabilidad.esProcesable", "missing")
+            elif not isinstance(ejecutabilidad.get("esProcesable"), bool):
+                _warn(warnings, f"{path}.ejecutabilidad.esProcesable", "expected boolean")
+
+            if "motivoNoProcesable" not in ejecutabilidad:
+                _warn(warnings, f"{path}.ejecutabilidad.motivoNoProcesable", "missing")
 
         movimiento = instruccion.get("movimiento")
         if movimiento is None:
+            if tipo_instruccion == "movimiento_dinero":
+                _warn(warnings, f"{path}.movimiento", "expected object")
             continue
         if not isinstance(movimiento, dict):
             _warn(warnings, f"{path}.movimiento", "expected object or null")
             continue
 
+        tipo_movimiento = movimiento.get("tipoMovimiento")
+        if tipo_movimiento not in ALLOWED_MOVIMIENTO_TIPOS:
+            _warn(
+                warnings,
+                f"{path}.movimiento.tipoMovimiento",
+                f"invalid value {tipo_movimiento!r}",
+            )
+
         confianza = movimiento.get("confianzaTipoMovimiento")
-        if not isinstance(confianza, Number) or not 0 <= confianza <= 1:
+        if not _is_number(confianza) or not 0 <= confianza <= 1:
             _warn(
                 warnings,
                 f"{path}.movimiento.confianzaTipoMovimiento",
@@ -134,10 +196,17 @@ def validate_schema(result: dict[str, Any]) -> list[str]:
 
         importe = movimiento.get("importe")
         if isinstance(importe, dict):
-            if not isinstance(importe.get("valor"), Number):
+            if not _is_number(importe.get("valor")):
                 _warn(warnings, f"{path}.movimiento.importe.valor", "expected number")
-            if not importe.get("moneda"):
+            moneda = importe.get("moneda")
+            if not moneda:
                 _warn(warnings, f"{path}.movimiento.importe.moneda", "missing")
+            elif moneda not in ALLOWED_MONEDAS:
+                _warn(
+                    warnings,
+                    f"{path}.movimiento.importe.moneda",
+                    f"invalid value {moneda!r}",
+                )
         else:
             _warn(warnings, f"{path}.movimiento.importe", "expected object")
 

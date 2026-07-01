@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0",
+  "resumenGeneral": {
+    "cantidadInstrucciones": 1,
+    "contieneMovimientosDinero": false,
+    "contieneInstruccionesNoFinancieras": true
+  },
+  "instrucciones": [
+    {
+      "tipoInstruccion": "no_financiera",
+      "descripcionIA": "Solicitar informe de domicilio al Registro Civil",
+      "movimiento": null,
+      "ejecutabilidad": {
+        "esProcesable": false,
+        "motivoNoProcesable": "No contiene movimiento de dinero"
+      }
+    }
+  ]
+}

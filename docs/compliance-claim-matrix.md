@@ -20,13 +20,14 @@ Esta matriz define que se puede afirmar hoy, que queda para staging bancario y q
 | Firewall recomendado | Implementado como documentacion operativa | `README.md` y `DEPLOY.md` incluyen regla `netsh` | "Se documenta bloqueo inbound como defensa en profundidad." |
 | Binario `llama.cpp` pineado | Implementado | `setup_llm.py` fija release `b8192` y SHA-256 del zip | "El binario de inferencia descargado se verifica por SHA-256." |
 | JSON estructurado | Implementado | `prompt_template.txt`, `process_pdfs.py` escriben JSON por PDF | "El resultado se entrega como JSON con schema Cedeira v1.0." |
-| Metadata auditada | Implementado | `audit_metadata.py`; `_pipeline.audit.source_sha256`, `prompt_sha256`, `model_id`, `model_sha256` si hay manifest, `code_commit`, `processed_at` | "Cada salida incluye metadata reproducible de auditoria." |
+| Metadata auditada | Implementado | `audit_metadata.py`; `_pipeline.audit.source_sha256`, `extracted_text_sha256`, `prompt_sha256`, `model_id`, `model_sha256` si hay manifest, `code_commit`, `processed_at` | "Cada salida incluye metadata reproducible de auditoria." |
 | Deteccion de PDF sin texto | Implementado | `pdf_extract.py` devuelve `needs_ocr=True` si no hay texto extraible | "Los PDFs sin texto se marcan como pendientes de OCR." |
 | Validacion deterministica post-LLM | Implementado | `schema_contract.py`, `postprocess.py`, `tests/test_schema_contract.py` | "La salida se valida contra un contrato deterministico antes de publicarse." |
 | CBU integrada al pipeline | Implementado | `postprocess.py` usa `cbu.py`; `tests/test_cbu.py` verifica bloqueo por checksum invalido | "Una CBU invalida marca la instruccion como no procesable." |
-| Fuente para CBU e importe | Implementado parcial | `source_anchor.py`, `_validation.source_anchors`, `tests/test_source_anchor.py` | "CBU e importe se anclan al texto fuente con snippet y offsets de texto." |
+| Fuente para campos criticos | Implementado | `source_anchor.py`, `postprocess.py`, `_validation.source_anchors`, `tests/test_source_anchor.py` | "Cuenta judicial, CBU, importe, beneficiario y CUIT se anclan al texto fuente normalizado con snippet y offsets de texto." |
 | Manifest del modelo | Implementado | `model_registry.py`, `verify_model.py`, `setup_llm.py`, `start_server.bat` | "El modelo local se verifica contra un manifest SHA-256 antes de iniciar." |
 | Audit log append-only local | Implementado | `audit_log.py` genera `logs/audit.jsonl` con cadena de hashes; tests detectan tampering | "Cada PDF procesado deja un evento hash-chain sin texto del documento." |
+| Reporte de revision humana local | Implementado | `review_report.py`, `process_pdfs.py`, `tests/test_review_report.py`, `tests/test_output_writer.py` | "Cada JSON procesado genera un HTML local de revision con hashes, warnings, instrucciones y anchors." |
 | Instalacion offline documentada | Implementado como documentacion operativa | `DEPLOY.md`, `docs/staging-offline-checklist.md` | "El despliegue bancario usa paquete offline y evidencia de SHA-256/egress." |
 | Logs sin contenido del documento | Implementado parcial | `process_pdfs.py` configura file logs a nivel INFO | "Los logs operativos no persisten el texto completo del oficio." |
 
@@ -37,9 +38,7 @@ Estos claims son necesarios para homologacion, pero todavia no deben venderse co
 | Claim | Estado | Trabajo requerido | Gate de evidencia |
 |---|---|---|---|
 | CUIT e importes validados | Staging | Agregar validadores y normalizadores deterministas | Tests de CUIT/importe y casos negativos. |
-| Fuente por campo critico completa | Staging | Extender anchors a beneficiario, CUIT y pagina de PDF | Cada campo critico tiene pagina/snippet/evidencia o dispara revision. |
-| Hash del texto extraido | Staging | Calcular SHA-256 del texto normalizado | `_audit.extracted_text_sha256` presente. |
-| Reporte de revision humana | Staging | HTML local por oficio con JSON, warnings y anchors | Demo con casos procesable/revision/no procesable. |
+| Citas por pagina de PDF | Staging | Mapear anchors del texto normalizado a pagina/coordenadas de PDF | Cada campo critico tiene pagina/snippet/evidencia o dispara revision. |
 | Paquete offline probado en servidor aislado | Staging | Ejecutar checklist offline en entorno bancario real | Instalacion sin internet con evidencias firmadas. |
 | No egress en runtime | Staging | Bloqueo firewall/DMZ y evidencia operativa | Logs/reglas de firewall demuestran cero salida durante procesamiento. |
 | Cifrado en reposo | Staging | BitLocker/volumen cifrado o politica aprobada del banco | Evidencia de volumen cifrado para input/output/logs/modelo. |
@@ -71,11 +70,12 @@ Usar estos textos como base en `cedeira-ia-compliance`:
 - "La inferencia usa `llama.cpp` con `Qwen2.5-7B-Instruct-GGUF Q4_K_M` en el servidor."
 - "El runtime no necesita APIs cloud ni claves externas para procesar documentos."
 - "La salida actual es JSON Cedeira v1.0 con metadata auditada de pipeline."
-- "El pipeline valida schema, CBU y ancla CBU/importe al texto fuente con snippets."
+- "El pipeline valida schema, CBU y ancla cuenta judicial, CBU, importe, beneficiario y CUIT al texto fuente con snippets."
 - "El modelo local se gobierna con registry, manifest y verificacion SHA-256."
 - "El audit log local usa cadena de hashes append-only sin persistir texto del documento."
+- "Cada oficio procesado genera un reporte HTML local de revision humana con hashes, warnings, instrucciones y anchors."
 - "Los controles de homologacion bancaria se organizan en implementado hoy, staging y roadmap."
-- "CUIT/importes deterministas, fuente completa por pagina, revision humana, egress evidenciado y cifrado de volumen son el siguiente corte de staging."
+- "CUIT/importes deterministas, citas por pagina, egress evidenciado y cifrado de volumen son el siguiente corte de staging."
 
 ## Claims Que No Deben Figurar Como Implementados
 
@@ -86,7 +86,7 @@ Usar estos textos como base en `cedeira-ia-compliance`:
 - TLS 1.3.
 - AES-256 implementado por la aplicacion.
 - Logs WORM/SIEM externos como implementados.
-- Citas pagina/offset por cada campo.
+- Citas pagina por cada campo.
 - Integracion core bancario.
 - AWS S3 activo.
 - `appsettings.json`.

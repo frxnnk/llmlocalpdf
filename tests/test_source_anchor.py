@@ -1,7 +1,7 @@
 import unittest
 
 from postprocess import reconcile_instrucciones
-from source_anchor import anchor_amount, anchor_digits
+from source_anchor import anchor_amount, anchor_digits, anchor_text
 
 
 class TestSourceAnchor(unittest.TestCase):
@@ -24,6 +24,15 @@ class TestSourceAnchor(unittest.TestCase):
         self.assertIsInstance(anchor["start"], int)
         self.assertIsInstance(anchor["end"], int)
         self.assertIn("$339.649,70", anchor["snippet"])
+
+    def test_text_anchor_matches_case_insensitive_name(self):
+        source_text = "Ordenese transferir a favor de JUAN PEREZ por saldo judicial."
+
+        anchor = anchor_text(source_text, "Juan Perez")
+
+        self.assertTrue(anchor["found"])
+        self.assertEqual(source_text[anchor["start"] : anchor["end"]], "JUAN PEREZ")
+        self.assertIn("JUAN PEREZ", anchor["snippet"])
 
     def test_missing_value_returns_empty_anchor(self):
         anchor = anchor_digits("No hay cuenta bancaria en este texto.", "0110040400000000000017")
@@ -59,16 +68,25 @@ class TestSourceAnchor(unittest.TestCase):
                 }
             ],
         }
-        source_text = "CBU 0110-0404 0000 0000 0000 17 por $339.649,70"
+        source_text = (
+            "Cuenta judicial 123-456. CBU 0110-0404 0000 0000 0000 17 "
+            "a favor de Test CUIT 20-12345678-9 por $339.649,70"
+        )
+        result["instrucciones"][0]["movimiento"]["beneficiario"]["cuit"] = "20123456789"
 
         corrected, warnings = reconcile_instrucciones(result, source_text=source_text)
 
         self.assertEqual(warnings, [])
         anchors = corrected["_validation"]["source_anchors"]
         self.assertTrue(
+            anchors["instrucciones[0].movimiento.origenFondos.identificador"]["found"]
+        )
+        self.assertTrue(
             anchors["instrucciones[0].movimiento.destinoFondos.identificador"]["found"]
         )
         self.assertTrue(anchors["instrucciones[0].movimiento.importe.valor"]["found"])
+        self.assertTrue(anchors["instrucciones[0].movimiento.beneficiario.nombre"]["found"])
+        self.assertTrue(anchors["instrucciones[0].movimiento.beneficiario.cuit"]["found"])
 
 
 if __name__ == "__main__":

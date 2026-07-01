@@ -3,6 +3,8 @@
 Este manifiesto cierra el paquete local de evidencia para el corte `staging-baseline-2026-06-29`.
 No versiona PDFs, outputs, logs ni modelos; registra los hashes que permiten verificar el ZIP operativo local.
 
+Nota de vigencia: este manifiesto es historico. El estado tecnico actual posterior a `llmlocalpdf#2` y `llmlocalpdf#3` queda en `docs/evidence-runs/2026-07-01-technical-source-alignment.md`.
+
 ## Scope
 
 | Repo | Branch | SHA | Rol |

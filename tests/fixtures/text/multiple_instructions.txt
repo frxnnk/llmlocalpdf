@@ -1,0 +1,4 @@
+Librese oficio al Banco para transferir $10.000,00 desde la cuenta judicial 123-456
+a la CBU 0110040400000000000017 a nombre de DIAZ GUERRERO MAURICIO, CUIT 20358095403.
+Asimismo, transfierase $5.000,00 desde la cuenta judicial 123-456 a la CBU
+0110040400000000000017 por honorarios regulados.

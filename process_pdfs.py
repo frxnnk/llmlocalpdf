@@ -248,7 +248,10 @@ def main() -> None:
         description="Procesar PDFs de oficios judiciales con LLM local"
     )
     parser.add_argument(
-        "--input", required=True, help="Directorio con PDFs a procesar"
+        "--input", help="Directorio con PDFs a procesar"
+    )
+    parser.add_argument(
+        "--file", help="Procesar un unico PDF (alternativa a --input)"
     )
     parser.add_argument(
         "--output", required=True, help="Directorio de salida para JSONs"
@@ -263,7 +266,9 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    input_dir = Path(args.input)
+    if not args.input and not args.file:
+        parser.error("Se requiere --input o --file")
+
     output_dir = Path(args.output)
     script_dir = Path(__file__).parent
 
@@ -283,7 +288,16 @@ def main() -> None:
     fix_prompt_template = load_prompt(str(fix_file))
 
     # Encontrar PDFs
-    pdfs = sorted(input_dir.glob("*.pdf"))
+    if args.file:
+        file_path = Path(args.file)
+        if not file_path.exists():
+            logger.error("No se encontró el archivo: %s", file_path)
+            sys.exit(1)
+        pdfs = [file_path]
+        input_dir = file_path.parent
+    else:
+        input_dir = Path(args.input)
+        pdfs = sorted(input_dir.glob("*.pdf"))
     if not pdfs:
         logger.error("No se encontraron PDFs en %s", input_dir)
         sys.exit(1)

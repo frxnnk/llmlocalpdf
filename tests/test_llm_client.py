@@ -134,6 +134,18 @@ class TestJsonRepair(unittest.TestCase):
         self.assertEqual(result, {"ok": True})
         call.assert_called_once_with("system", "user", 0.2, 1500)
 
+    def test_call_with_json_repair_accepts_prompt_keyword_aliases(self):
+        client = LLMClient()
+
+        with patch.object(client, "call", return_value='{"ok": true}') as call:
+            result = client.call_with_json_repair(
+                system_prompt="system prompt",
+                user_prompt="user prompt",
+            )
+
+        self.assertEqual(result, {"ok": True})
+        call.assert_called_once_with("system prompt", "user prompt", 0.2, 1500)
+
     def test_call_with_json_repair_repairs_malformed_json(self):
         client = LLMClient()
 

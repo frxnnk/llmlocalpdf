@@ -117,11 +117,12 @@ class LLMClient:
 
     def call_with_json_repair(
         self,
-        system: str,
-        user: str,
-        fix_prompt_template: str,
+        system: str | None = None,
+        user: str | None = None,
+        fix_prompt_template: str | None = None,
         temperature: float = 0.2,
         max_tokens: int = 1500,
+        **kwargs,
     ) -> dict:
         """Llamar al LLM, parsear JSON, y si falla, intentar reparar.
 
@@ -130,6 +131,19 @@ class LLMClient:
         3. Si falla, mandar output roto al LLM con fix_prompt
         4. Si sigue fallando, raise
         """
+        system = system if system is not None else kwargs.pop("system_prompt", None)
+        user = user if user is not None else kwargs.pop("user_prompt", None)
+        if kwargs:
+            unexpected = ", ".join(sorted(kwargs))
+            raise TypeError(f"Unexpected keyword argument(s): {unexpected}")
+        if system is None or user is None:
+            raise TypeError("call_with_json_repair requires system/user prompts")
+        if fix_prompt_template is None:
+            fix_prompt_template = (
+                "Repara el siguiente texto para que sea JSON valido. "
+                "Devolve solo JSON:\n{broken_json}"
+            )
+
         raw = self.call(system, user, temperature, max_tokens)
         logger.debug("LLM raw response (first 500 chars): %s", raw[:500])
 

@@ -29,8 +29,8 @@ class TestIntegrationLLM(unittest.TestCase):
         from golden_eval import compare_result
 
         cls.llm = LLMClient(endpoint=LLM_ENDPOINT)
-        cls.reconcile = reconcile_instrucciones
-        cls.compare = compare_result
+        cls.reconcile = staticmethod(reconcile_instrucciones)
+        cls.compare = staticmethod(compare_result)
 
         prompt_file = SCRIPT_DIR / "prompt_template.txt"
         cls.system_prompt = prompt_file.read_text(encoding="utf-8")
@@ -59,7 +59,7 @@ class TestIntegrationLLM(unittest.TestCase):
         result.setdefault("resumenGeneral", {})
         result.setdefault("instrucciones", [])
 
-        result = self.reconcile(result, source_text=text)
+        result, _warnings = self.reconcile(result, source_text=text)
         return result
 
     def test_simple_transfer(self):

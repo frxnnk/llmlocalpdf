@@ -1,5 +1,7 @@
 # Procesador de Oficios Judiciales con LLM Local
 
+[![CI](https://github.com/frxnnk/llmlocalpdf/actions/workflows/ci.yml/badge.svg)](https://github.com/frxnnk/llmlocalpdf/actions/workflows/ci.yml)
+
 Pipeline automatizado que procesa oficios judiciales argentinos en PDF, extrae texto, lo envía a un LLM local (Qwen2.5 7B via llama.cpp) y genera un JSON estructurado con instrucciones, movimientos de dinero, CBUs, importes, partes y beneficiarios.
 
 **Todo corre 100% local** — sin API keys, sin datos enviados a la nube, sin dependencias externas en runtime.
